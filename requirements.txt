@@ -1,0 +1,55 @@
+# Naitik's OTT / StreamPulse TV - Requirements & Installation Guide
+
+## 1. System Requirements & Environment
+- Node.js: >= 18.0.0
+- NPM: >= 9.0.0
+- Platform Support: Web, Android (TV & Mobile), iOS
+
+## 2. Dependencies List
+- expo: ~57.0.16
+- react: 19.2.3
+- react-dom: 19.2.3
+- react-native: 0.86.2
+- react-native-web: ^0.21.2
+- @expo/vector-icons: ^15.0.2
+- @react-native-async-storage/async-storage: 2.2.0
+- expo-status-bar: ~57.0.1
+- expo-video: ~57.0.2
+- hls.js: ^1.7.1
+- @expo/metro-runtime: ~57.0.13
+- typescript: ~6.0.3
+
+## 3. Installation Commands
+To install all necessary dependencies, run:
+```bash
+npm install
+```
+
+## 4. Run Commands
+### Start Expo Server (Interactive Mode)
+```bash
+npm start
+# OR
+npx expo start
+```
+
+### Run on Web (Browser Mode)
+```bash
+npm run web
+# OR
+npx expo start --web
+```
+
+### Run on Android Device / Android TV Emulator
+```bash
+npm run android
+```
+
+### Run on iOS Simulator
+```bash
+npm run ios
+```
+
+## 5. Hotkey Shortcuts (Web & TV Remote)
+- Press '9': Open Search Bar directly
+- Press '0': Toggle Filter Drawers (Marathi, Hindi, Category, Country)
