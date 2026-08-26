@@ -469,51 +469,70 @@ export const IPTVService = {
         }
       }
 
-      // Category Filter (Marathi Special, Hindi Special, Kids, News, Devotional, etc.)
+      // Category Filter (Marathi Special, Hindi Special, Kids, News, Devotional, Movies, etc.)
       if (catId !== 'all' && catId !== '') {
         const chCats = (ch.categories || []).map((c) => c.toLowerCase());
         chCats.push(ch.category.toLowerCase());
 
-        let matchesCategory = chCats.some((c) => catKeys.includes(c));
+        // News Channel Detection Helper
+        const isNews =
+          ch.category.toLowerCase().includes('news') ||
+          chCats.some((c) => c.includes('news')) ||
+          ['news', 'samachar', 'taas', 'majha', 'lokmat', 'saam', 'tak', 'khabar', 'patrika', 'bulletin', '24x7', 'tv9', 'abp', 'ndtv', 'republic', 'wion', 'cnbc', 'cnn', 'indiatv', 'india today', 'times now', 'mirror now', 'jai maharashtra'].some(
+            (kw) => nameLower.includes(kw) || idLower.includes(kw)
+          );
 
-        if (catId === 'marathi') {
-          matchesCategory =
+        let matchesCategory = false;
+
+        if (catId === 'news') {
+          // Dedicated News Section: Shows ALL Marathi, Hindi, & Global News Channels
+          matchesCategory = isNews;
+        } else if (catId === 'marathi') {
+          // Marathi Special: All Marathi Channels (Entertainment, Serials, Music, Movies), EXCLUDING News
+          const isMarathi =
             ch.language === 'mr' ||
+            (ch.languages && ch.languages.includes('mr')) ||
             nameLower.includes('marathi') ||
-            nameLower.includes('majha') ||
-            nameLower.includes('lokmat') ||
-            nameLower.includes('saam') ||
-            nameLower.includes('taas') ||
             nameLower.includes('pravah') ||
             nameLower.includes('fakht') ||
             nameLower.includes('fakt') ||
-            nameLower.includes('sahyadri');
+            nameLower.includes('mkn') ||
+            nameLower.includes('sahyadri') ||
+            nameLower.includes('maiboli') ||
+            nameLower.includes('planet marathi');
+
+          matchesCategory = isMarathi && !isNews;
         } else if (catId === 'hindi') {
-          matchesCategory =
+          // Hindi Special: All Hindi Channels (Entertainment, Movies, Serials), EXCLUDING News
+          const isHindi =
             ch.language === 'hi' ||
+            (ch.languages && ch.languages.includes('hi')) ||
             nameLower.includes('hindi') ||
-            nameLower.includes('tak') ||
             nameLower.includes('bharat') ||
-            nameLower.includes('aaj tak') ||
-            nameLower.includes('ndtv india') ||
-            nameLower.includes('sanskar') ||
-            nameLower.includes('aastha') ||
-            nameLower.includes('zee news') ||
-            nameLower.includes('abp news') ||
+            nameLower.includes('star plus') ||
+            nameLower.includes('colors') ||
+            nameLower.includes('sony') ||
+            nameLower.includes('zee tv') ||
             nameLower.includes('dangal') ||
-            nameLower.includes('manoranjan');
+            nameLower.includes('manoranjan') ||
+            nameLower.includes('goldmines') ||
+            nameLower.includes('bollywood');
+
+          matchesCategory = isHindi && !isNews;
         } else if (catId === 'kids') {
           const kidsKeywords = ['kid', 'kids', 'toon', 'toons', 'cartoon', 'disney', 'nick', 'nickelodeon', 'hungama', 'sonic', 'pogo', 'junior', 'baby', 'cbeebies', 'duck', 'chotu', 'bal'];
-          matchesCategory = matchesCategory || kidsKeywords.some((kw) => nameLower.includes(kw) || idLower.includes(kw));
+          matchesCategory = kidsKeywords.some((kw) => nameLower.includes(kw) || idLower.includes(kw)) && !isNews;
         } else if (catId === 'devotional') {
           const devKeywords = ['bhakti', 'devotional', 'aastha', 'sanskar', 'sadhna', 'peace', 'god', 'gurbani', 'satsang', 'dharma', 'shradha', 'religious', 'spiritual'];
-          matchesCategory = matchesCategory || devKeywords.some((kw) => nameLower.includes(kw) || idLower.includes(kw));
-        } else if (catId === 'news') {
-          const newsKeywords = ['news', 'tak', 'samachar', 'patrika', 'taas', 'majha', '24x7', 'khabar', 'bulletin', 'abp', 'ndtv', 'tv9', 'lokmat'];
-          matchesCategory = matchesCategory || newsKeywords.some((kw) => nameLower.includes(kw) || idLower.includes(kw));
+          matchesCategory = devKeywords.some((kw) => nameLower.includes(kw) || idLower.includes(kw)) && !isNews;
         } else if (catId === 'movies') {
           const movieKeywords = ['movie', 'movies', 'cinema', 'film', 'talkies', 'bollywood', 'multiplex', 'goldmines', 'b4u', 'filamchi'];
-          matchesCategory = matchesCategory || movieKeywords.some((kw) => nameLower.includes(kw) || idLower.includes(kw));
+          matchesCategory = movieKeywords.some((kw) => nameLower.includes(kw) || idLower.includes(kw)) && !isNews;
+        } else if (catId === 'entertainment') {
+          const entKeywords = ['entertainment', 'series', 'drama', 'serial', 'comedy', 'general', 'star', 'colors', 'sony', 'zee'];
+          matchesCategory = entKeywords.some((kw) => nameLower.includes(kw) || idLower.includes(kw)) && !isNews;
+        } else {
+          matchesCategory = chCats.some((c) => catKeys.includes(c));
         }
 
         if (!matchesCategory) {
