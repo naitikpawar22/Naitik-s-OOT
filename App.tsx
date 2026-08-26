@@ -62,29 +62,42 @@ export default function App() {
     loadInitialData();
   }, []);
 
-  // Hotkey Navigation Support (Key 9 for Search, Key 0 for Filters)
+  // Remote Control 0-9 Button Support & Hotkeys
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is actively typing in an input
+    const handleKeyDown = (e: any) => {
+      const key = e.key || e.nativeEvent?.key;
+      // Don't intercept when user is typing in a text input
       const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       if (targetTag === 'input' || targetTag === 'textarea') return;
 
-      if (e.key === '9') {
-        e.preventDefault();
+      if (key === '0') {
+        if (e.preventDefault) e.preventDefault();
+        setIsFilterOpen((prev) => !prev);
+      } else if (key === '9') {
+        if (e.preventDefault) e.preventDefault();
         handleTabChange('home');
         setTimeout(() => {
           searchInputRef.current?.focus();
         }, 100);
-      } else if (e.key === '0') {
-        e.preventDefault();
-        setIsFilterOpen((prev) => !prev);
+      } else if (key === '1') {
+        if (e.preventDefault) e.preventDefault();
+        handleTabChange('home');
+      } else if (key === '2') {
+        if (e.preventDefault) e.preventDefault();
+        handleTabChange('movies');
+      } else if (key === '3') {
+        if (e.preventDefault) e.preventDefault();
+        handleTabChange('favorites');
+      } else if (key === '4') {
+        if (e.preventDefault) e.preventDefault();
+        handleTabChange('settings');
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
   }, [handleTabChange]);
 
   const loadAllJsonChannels = useCallback(async () => {

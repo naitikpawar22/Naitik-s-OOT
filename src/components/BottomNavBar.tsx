@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { darkTheme, ThemePalette } from '../styles/theme';
@@ -18,48 +18,94 @@ export const BottomNavBarComponent: React.FC<BottomNavBarProps> = ({
   favoritesCount,
   activeTheme = darkTheme,
 }) => {
+  const [focusedTab, setFocusedTab] = useState<TabType | null>(null);
   const styles = useMemo(() => getStyles(activeTheme), [activeTheme]);
 
   return (
     <View style={styles.container}>
       {/* Home Tab */}
       <TouchableOpacity
-        style={[styles.tabBtn, activeTab === 'home' && styles.tabBtnActive]}
+        style={[
+          styles.tabBtn,
+          activeTab === 'home' && styles.tabBtnActive,
+          focusedTab === 'home' && styles.tabBtnFocused,
+        ]}
         onPress={() => onTabChange('home')}
+        onFocus={() => setFocusedTab('home')}
+        onBlur={() => setFocusedTab(null)}
+        focusable={true}
         activeOpacity={0.7}
         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       >
         <Ionicons
           name={activeTab === 'home' ? 'home' : 'home-outline'}
           size={22}
-          color={activeTab === 'home' ? activeTheme.colors.accentLight : activeTheme.colors.textMuted}
+          color={
+            focusedTab === 'home'
+              ? '#38BDF8'
+              : activeTab === 'home'
+              ? activeTheme.colors.accentLight
+              : activeTheme.colors.textMuted
+          }
         />
-        <Text style={[styles.tabLabel, activeTab === 'home' && styles.tabLabelActive]}>
+        <Text
+          style={[
+            styles.tabLabel,
+            activeTab === 'home' && styles.tabLabelActive,
+            focusedTab === 'home' && styles.tabLabelFocused,
+          ]}
+        >
           Home
         </Text>
       </TouchableOpacity>
 
       {/* Movies Tab */}
       <TouchableOpacity
-        style={[styles.tabBtn, activeTab === 'movies' && styles.tabBtnActive]}
+        style={[
+          styles.tabBtn,
+          activeTab === 'movies' && styles.tabBtnActive,
+          focusedTab === 'movies' && styles.tabBtnFocused,
+        ]}
         onPress={() => onTabChange('movies')}
+        onFocus={() => setFocusedTab('movies')}
+        onBlur={() => setFocusedTab(null)}
+        focusable={true}
         activeOpacity={0.7}
         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       >
         <Ionicons
           name={activeTab === 'movies' ? 'film' : 'film-outline'}
           size={22}
-          color={activeTab === 'movies' ? activeTheme.colors.accentLight : activeTheme.colors.textMuted}
+          color={
+            focusedTab === 'movies'
+              ? '#38BDF8'
+              : activeTab === 'movies'
+              ? activeTheme.colors.accentLight
+              : activeTheme.colors.textMuted
+          }
         />
-        <Text style={[styles.tabLabel, activeTab === 'movies' && styles.tabLabelActive]}>
+        <Text
+          style={[
+            styles.tabLabel,
+            activeTab === 'movies' && styles.tabLabelActive,
+            focusedTab === 'movies' && styles.tabLabelFocused,
+          ]}
+        >
           Movies 🍿
         </Text>
       </TouchableOpacity>
 
       {/* Favorites Tab */}
       <TouchableOpacity
-        style={[styles.tabBtn, activeTab === 'favorites' && styles.tabBtnActive]}
+        style={[
+          styles.tabBtn,
+          activeTab === 'favorites' && styles.tabBtnActive,
+          focusedTab === 'favorites' && styles.tabBtnFocused,
+        ]}
         onPress={() => onTabChange('favorites')}
+        onFocus={() => setFocusedTab('favorites')}
+        onBlur={() => setFocusedTab(null)}
+        focusable={true}
         activeOpacity={0.7}
         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       >
@@ -67,7 +113,13 @@ export const BottomNavBarComponent: React.FC<BottomNavBarProps> = ({
           <Ionicons
             name={activeTab === 'favorites' ? 'heart' : 'heart-outline'}
             size={22}
-            color={activeTab === 'favorites' ? activeTheme.colors.secondary : activeTheme.colors.textMuted}
+            color={
+              focusedTab === 'favorites'
+                ? '#EC4899'
+                : activeTab === 'favorites'
+                ? activeTheme.colors.secondary
+                : activeTheme.colors.textMuted
+            }
           />
           {favoritesCount > 0 && (
             <View style={styles.badge}>
@@ -75,24 +127,49 @@ export const BottomNavBarComponent: React.FC<BottomNavBarProps> = ({
             </View>
           )}
         </View>
-        <Text style={[styles.tabLabel, activeTab === 'favorites' && styles.tabLabelActive]}>
+        <Text
+          style={[
+            styles.tabLabel,
+            activeTab === 'favorites' && styles.tabLabelActive,
+            focusedTab === 'favorites' && styles.tabLabelFocused,
+          ]}
+        >
           Favorites
         </Text>
       </TouchableOpacity>
 
       {/* Settings Tab */}
       <TouchableOpacity
-        style={[styles.tabBtn, activeTab === 'settings' && styles.tabBtnActive]}
+        style={[
+          styles.tabBtn,
+          activeTab === 'settings' && styles.tabBtnActive,
+          focusedTab === 'settings' && styles.tabBtnFocused,
+        ]}
         onPress={() => onTabChange('settings')}
+        onFocus={() => setFocusedTab('settings')}
+        onBlur={() => setFocusedTab(null)}
+        focusable={true}
         activeOpacity={0.7}
         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       >
         <Ionicons
           name={activeTab === 'settings' ? 'settings' : 'settings-outline'}
           size={22}
-          color={activeTab === 'settings' ? activeTheme.colors.accentLight : activeTheme.colors.textMuted}
+          color={
+            focusedTab === 'settings'
+              ? '#38BDF8'
+              : activeTab === 'settings'
+              ? activeTheme.colors.accentLight
+              : activeTheme.colors.textMuted
+          }
         />
-        <Text style={[styles.tabLabel, activeTab === 'settings' && styles.tabLabelActive]}>
+        <Text
+          style={[
+            styles.tabLabel,
+            activeTab === 'settings' && styles.tabLabelActive,
+            focusedTab === 'settings' && styles.tabLabelFocused,
+          ]}
+        >
           Settings
         </Text>
       </TouchableOpacity>
@@ -131,10 +208,18 @@ const getStyles = (theme: ThemePalette) =>
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 6,
+      borderRadius: theme.borderRadius.sm,
+      marginHorizontal: 2,
     },
     tabBtnActive: {
       borderBottomWidth: 2,
       borderBottomColor: theme.colors.accentLight,
+    },
+    tabBtnFocused: {
+      backgroundColor: theme.mode === 'light' ? '#E0E7FF' : 'rgba(56, 189, 248, 0.25)',
+      borderColor: '#38BDF8',
+      borderWidth: 2,
+      transform: [{ scale: 1.05 }],
     },
     tabLabel: {
       fontSize: 11,
@@ -145,6 +230,10 @@ const getStyles = (theme: ThemePalette) =>
     tabLabelActive: {
       color: theme.colors.textPrimary,
       fontWeight: '700',
+    },
+    tabLabelFocused: {
+      color: '#38BDF8',
+      fontWeight: '800',
     },
     iconBadgeWrapper: {
       position: 'relative',

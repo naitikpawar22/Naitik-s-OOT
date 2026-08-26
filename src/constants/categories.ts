@@ -25,12 +25,6 @@ export const LANGUAGES: LanguageItem[] = [
     localName: 'English',
     flag: '🇬🇧',
   },
-  {
-    code: 'reg',
-    name: 'Regional',
-    localName: 'तमिल / तेलुगु / बंगाली',
-    flag: '🏵️',
-  },
 ];
 
 export const CATEGORIES: CategoryItem[] = [
@@ -59,16 +53,16 @@ export const CATEGORIES: CategoryItem[] = [
     categoryKeys: ['news', 'weather', 'legislative', 'public'],
   },
   {
-    id: 'entertainment',
-    name: 'Entertainment 🎬',
-    icon: 'tv-outline',
-    categoryKeys: ['entertainment', 'series', 'comedy', 'general'],
-  },
-  {
     id: 'movies',
     name: 'Movies & Cinema 🍿',
     icon: 'film',
     categoryKeys: ['movies', 'classic', 'cinema', 'film'],
+  },
+  {
+    id: 'entertainment',
+    name: 'Entertainment 🎬',
+    icon: 'tv-outline',
+    categoryKeys: ['entertainment', 'series', 'comedy', 'general'],
   },
   {
     id: 'kids',
@@ -77,28 +71,10 @@ export const CATEGORIES: CategoryItem[] = [
     categoryKeys: ['kids', 'animation', 'family', 'cartoon'],
   },
   {
-    id: 'music',
-    name: 'Music & Songs 🎵',
-    icon: 'musical-notes',
-    categoryKeys: ['music', 'relax', 'songs'],
-  },
-  {
     id: 'devotional',
     name: 'Devotional / Bhakti 🕉️',
     icon: 'heart-circle',
     categoryKeys: ['religious', 'devotional', 'bhakti', 'spiritual'],
-  },
-  {
-    id: 'sports',
-    name: 'Sports ⚽',
-    icon: 'football',
-    categoryKeys: ['sports', 'outdoor'],
-  },
-  {
-    id: 'documentary',
-    name: 'Documentary & Wild 🌿',
-    icon: 'earth',
-    categoryKeys: ['documentary', 'science', 'culture', 'travel', 'education'],
   },
 ];
 
@@ -112,26 +88,6 @@ export const COUNTRIES: CountryItem[] = [
     code: 'all',
     name: 'Global / All',
     flag: '🌐',
-  },
-  {
-    code: 'US',
-    name: 'USA',
-    flag: '🇺🇸',
-  },
-  {
-    code: 'GB',
-    name: 'UK',
-    flag: '🇬🇧',
-  },
-  {
-    code: 'CA',
-    name: 'Canada',
-    flag: '🇨🇦',
-  },
-  {
-    code: 'AU',
-    name: 'Australia',
-    flag: '🇦🇺',
   },
 ];
 

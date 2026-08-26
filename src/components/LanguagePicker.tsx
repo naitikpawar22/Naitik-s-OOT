@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, TouchableOpacity, Text, StyleSheet, View, Platform } from 'react-native';
 import { LANGUAGES } from '../constants/categories';
 import { darkTheme, ThemePalette } from '../styles/theme';
@@ -14,6 +14,7 @@ export const LanguagePicker: React.FC<LanguagePickerProps> = ({
   onSelectLanguage,
   activeTheme = darkTheme,
 }) => {
+  const [focusedCode, setFocusedCode] = useState<string | null>(null);
   const styles = getStyles(activeTheme);
 
   return (
@@ -26,12 +27,20 @@ export const LanguagePicker: React.FC<LanguagePickerProps> = ({
       >
         {LANGUAGES.map((lang) => {
           const isSelected = lang.code === selectedLanguageCode;
+          const isFocused = lang.code === focusedCode;
 
           return (
             <TouchableOpacity
               key={lang.code}
-              style={[styles.chip, isSelected && styles.chipSelected]}
+              style={[
+                styles.chip,
+                isSelected && styles.chipSelected,
+                isFocused && styles.chipFocused,
+              ]}
               onPress={() => onSelectLanguage(lang.code)}
+              onFocus={() => setFocusedCode(lang.code)}
+              onBlur={() => setFocusedCode(null)}
+              focusable={true}
               activeOpacity={0.7}
             >
               <Text style={styles.flag}>{lang.flag}</Text>
@@ -79,17 +88,12 @@ const getStyles = (theme: ThemePalette) =>
     chipSelected: {
       backgroundColor: theme.mode === 'light' ? '#FCE7F3' : 'rgba(236, 72, 153, 0.2)',
       borderColor: theme.colors.secondary,
-      ...Platform.select({
-        web: {
-          boxShadow: '0px 2px 4px rgba(236, 72, 153, 0.3)',
-        },
-        default: {
-          shadowColor: theme.colors.secondary,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4,
-        },
-      }),
+    },
+    chipFocused: {
+      borderColor: '#38BDF8',
+      borderWidth: 2,
+      backgroundColor: theme.mode === 'light' ? '#E0E7FF' : 'rgba(56, 189, 248, 0.25)',
+      transform: [{ scale: 1.05 }],
     },
     flag: {
       fontSize: 13,

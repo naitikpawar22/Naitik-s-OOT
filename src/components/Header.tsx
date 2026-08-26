@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, useWindowDimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { darkTheme, ThemePalette } from '../styles/theme';
@@ -26,6 +26,10 @@ export const HeaderComponent: React.FC<HeaderProps> = ({
 }) => {
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 480;
+
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isFilterFocused, setIsFilterFocused] = useState(false);
+
   const styles = useMemo(() => getStyles(activeTheme), [activeTheme]);
 
   return (
@@ -48,8 +52,8 @@ export const HeaderComponent: React.FC<HeaderProps> = ({
         </View>
 
         {/* Center Search Input Field */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={16} color={activeTheme.colors.textMuted} style={styles.searchIcon} />
+        <View style={[styles.searchContainer, isSearchFocused && styles.searchContainerFocused]}>
+          <Ionicons name="search" size={16} color={isSearchFocused ? '#38BDF8' : activeTheme.colors.textMuted} style={styles.searchIcon} />
           <TextInput
             ref={searchInputRef as any}
             style={styles.searchInput}
@@ -57,6 +61,8 @@ export const HeaderComponent: React.FC<HeaderProps> = ({
             placeholderTextColor={activeTheme.colors.textMuted}
             value={searchQuery}
             onChangeText={onSearchChange}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
             clearButtonMode="while-editing"
           />
           {searchQuery.length > 0 && (
@@ -72,21 +78,29 @@ export const HeaderComponent: React.FC<HeaderProps> = ({
 
         {/* Right Filter Toggle Button */}
         <TouchableOpacity
-          style={[styles.filterToggleBtn, isFilterOpen && styles.filterToggleBtnActive]}
+          style={[
+            styles.filterToggleBtn,
+            isFilterOpen && styles.filterToggleBtnActive,
+            isFilterFocused && styles.filterToggleBtnFocused,
+          ]}
           onPress={onToggleFilterDrawer}
+          onFocus={() => setIsFilterFocused(true)}
+          onBlur={() => setIsFilterFocused(false)}
+          focusable={true}
           activeOpacity={0.8}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons
             name="options-outline"
             size={18}
-            color={isFilterOpen ? activeTheme.colors.accentLight : activeTheme.colors.textPrimary}
+            color={isFilterFocused ? '#38BDF8' : isFilterOpen ? activeTheme.colors.accentLight : activeTheme.colors.textPrimary}
           />
           {!isSmallScreen && (
             <Text
               style={[
                 styles.filterToggleText,
                 isFilterOpen && styles.filterToggleTextActive,
+                isFilterFocused && styles.filterToggleTextFocused,
               ]}
             >
               Filters
@@ -153,6 +167,11 @@ const getStyles = (theme: ThemePalette) =>
       height: 38,
       marginHorizontal: 6,
     },
+    searchContainerFocused: {
+      borderColor: '#38BDF8',
+      borderWidth: 2,
+      backgroundColor: theme.mode === 'light' ? '#E0E7FF' : 'rgba(56, 189, 248, 0.15)',
+    },
     searchIcon: {
       marginRight: 6,
     },
@@ -180,6 +199,12 @@ const getStyles = (theme: ThemePalette) =>
       backgroundColor: theme.colors.accent,
       borderColor: theme.colors.accentLight,
     },
+    filterToggleBtnFocused: {
+      borderColor: '#38BDF8',
+      borderWidth: 2,
+      backgroundColor: theme.mode === 'light' ? '#E0E7FF' : 'rgba(56, 189, 248, 0.25)',
+      transform: [{ scale: 1.05 }],
+    },
     filterToggleText: {
       fontSize: 12,
       fontWeight: '700',
@@ -188,6 +213,10 @@ const getStyles = (theme: ThemePalette) =>
     },
     filterToggleTextActive: {
       color: '#FFF',
+    },
+    filterToggleTextFocused: {
+      color: '#38BDF8',
+      fontWeight: '800',
     },
     filterBadge: {
       position: 'absolute',

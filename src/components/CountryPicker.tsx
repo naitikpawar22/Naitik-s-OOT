@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { COUNTRIES } from '../constants/categories';
 import { darkTheme, ThemePalette } from '../styles/theme';
@@ -14,6 +14,7 @@ export const CountryPicker: React.FC<CountryPickerProps> = ({
   onSelectCountry,
   activeTheme = darkTheme,
 }) => {
+  const [focusedCode, setFocusedCode] = useState<string | null>(null);
   const styles = getStyles(activeTheme);
 
   return (
@@ -26,12 +27,20 @@ export const CountryPicker: React.FC<CountryPickerProps> = ({
       >
         {COUNTRIES.map((country) => {
           const isSelected = country.code === selectedCountryCode;
+          const isFocused = country.code === focusedCode;
 
           return (
             <TouchableOpacity
               key={country.code}
-              style={[styles.chip, isSelected && styles.chipSelected]}
+              style={[
+                styles.chip,
+                isSelected && styles.chipSelected,
+                isFocused && styles.chipFocused,
+              ]}
               onPress={() => onSelectCountry(country.code)}
+              onFocus={() => setFocusedCode(country.code)}
+              onBlur={() => setFocusedCode(null)}
+              focusable={true}
               activeOpacity={0.7}
             >
               <Text style={styles.flag}>{country.flag}</Text>
@@ -79,6 +88,12 @@ const getStyles = (theme: ThemePalette) =>
     chipSelected: {
       backgroundColor: theme.mode === 'light' ? '#EEF2FF' : 'rgba(99, 102, 241, 0.2)',
       borderColor: theme.colors.accent,
+    },
+    chipFocused: {
+      borderColor: '#38BDF8',
+      borderWidth: 2,
+      backgroundColor: theme.mode === 'light' ? '#E0E7FF' : 'rgba(56, 189, 248, 0.25)',
+      transform: [{ scale: 1.05 }],
     },
     flag: {
       fontSize: 13,

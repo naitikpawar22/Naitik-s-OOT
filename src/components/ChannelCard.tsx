@@ -25,6 +25,7 @@ export const ChannelCardComponent: React.FC<ChannelCardProps> = ({
   const [currentLogoUri, setCurrentLogoUri] = useState<string | undefined>(channel.logo);
   const [fallbackAttempt, setFallbackAttempt] = useState(0);
 
+  const [isFocused, setIsFocused] = useState(false);
   const styles = useMemo(() => getStyles(activeTheme), [activeTheme]);
 
   useEffect(() => {
@@ -66,8 +67,15 @@ export const ChannelCardComponent: React.FC<ChannelCardProps> = ({
 
   return (
     <TouchableOpacity
-      style={[styles.card, isPlaying && styles.cardPlaying]}
+      style={[
+        styles.card,
+        isPlaying && styles.cardPlaying,
+        isFocused && styles.cardFocused,
+      ]}
       onPress={() => onSelect(channel)}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+      focusable={true}
       activeOpacity={0.7}
     >
       <View style={styles.cardHeader}>
@@ -165,6 +173,24 @@ const getStyles = (theme: ThemePalette) =>
     cardPlaying: {
       borderColor: theme.colors.accent,
       backgroundColor: theme.mode === 'light' ? '#EEF2FF' : 'rgba(99, 102, 241, 0.12)',
+    },
+    cardFocused: {
+      borderColor: '#38BDF8',
+      borderWidth: 2.5,
+      backgroundColor: theme.mode === 'light' ? '#E0E7FF' : 'rgba(56, 189, 248, 0.22)',
+      transform: [{ scale: 1.04 }],
+      ...Platform.select({
+        web: {
+          boxShadow: '0px 0px 16px rgba(56, 189, 248, 0.6)',
+        },
+        default: {
+          shadowColor: '#38BDF8',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8,
+          shadowRadius: 10,
+          elevation: 10,
+        },
+      }),
     },
     cardHeader: {
       flexDirection: 'row',
