@@ -10,15 +10,12 @@ import {
 } from 'react-native';
 import { Header } from './src/components/Header';
 import { CategoryPicker } from './src/components/CategoryPicker';
-import { CountryPicker } from './src/components/CountryPicker';
-import { LanguagePicker } from './src/components/LanguagePicker';
 import { ChannelGrid } from './src/components/ChannelGrid';
 import { TVPlayer } from './src/components/TVPlayer';
 import { ChannelDetailModal } from './src/components/ChannelDetailModal';
 import { SettingsScreen } from './src/components/SettingsScreen';
 import { MoviesScreen } from './src/components/MoviesScreen';
 import { BottomNavBar, TabType } from './src/components/BottomNavBar';
-import { SpotlightBanner } from './src/components/SpotlightBanner';
 import { IPTVService } from './src/services/iptvService';
 import { StorageService, UserProfile } from './src/services/storageService';
 import { Channel } from './src/types';
@@ -62,43 +59,48 @@ export default function App() {
     loadInitialData();
   }, []);
 
-  // Remote Control 0-9 Button Support & Hotkeys
-  useEffect(() => {
-    const handleKeyDown = (e: any) => {
+  // Remote Control 0-9 Secret Shortcuts & Key Handlers (Android TV & Mobile Remote Support)
+  const handleRemoteKeyPress = useCallback(
+    (e: any) => {
       const key = e.key || e.nativeEvent?.key;
-      // Don't intercept when user is typing in a text input
+      const keyCode = e.keyCode || e.nativeEvent?.keyCode;
+
+      // Don't intercept when user is actively typing in a text input
       const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       if (targetTag === 'input' || targetTag === 'textarea') return;
 
-      if (key === '0') {
+      if (key === '0' || key === 'NumPad0' || keyCode === 7) {
         if (e.preventDefault) e.preventDefault();
         setIsFilterOpen((prev) => !prev);
-      } else if (key === '9') {
+      } else if (key === '9' || key === 'NumPad9' || keyCode === 16) {
         if (e.preventDefault) e.preventDefault();
         handleTabChange('home');
         setTimeout(() => {
           searchInputRef.current?.focus();
         }, 100);
-      } else if (key === '1') {
+      } else if (key === '1' || key === 'NumPad1' || keyCode === 8) {
         if (e.preventDefault) e.preventDefault();
         handleTabChange('home');
-      } else if (key === '2') {
+      } else if (key === '2' || key === 'NumPad2' || keyCode === 9) {
         if (e.preventDefault) e.preventDefault();
         handleTabChange('movies');
-      } else if (key === '3') {
+      } else if (key === '3' || key === 'NumPad3' || keyCode === 10) {
         if (e.preventDefault) e.preventDefault();
         handleTabChange('favorites');
-      } else if (key === '4') {
+      } else if (key === '4' || key === 'NumPad4' || keyCode === 11) {
         if (e.preventDefault) e.preventDefault();
         handleTabChange('settings');
       }
-    };
+    },
+    [handleTabChange]
+  );
 
+  useEffect(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
+      window.addEventListener('keydown', handleRemoteKeyPress);
+      return () => window.removeEventListener('keydown', handleRemoteKeyPress);
     }
-  }, [handleTabChange]);
+  }, [handleRemoteKeyPress]);
 
   const loadAllJsonChannels = useCallback(async () => {
     setIsLoading(true);
@@ -263,36 +265,13 @@ export default function App() {
             >
               {activeTab === 'home' && isFilterOpen && (
                 <View style={dynamicStyles.filterSlidersContainer}>
-                  {/* Language Filters Slider */}
-                  <LanguagePicker
-                    selectedLanguageCode={selectedLanguageCode}
-                    onSelectLanguage={setSelectedLanguageCode}
-                    activeTheme={activeTheme}
-                  />
-
-                  {/* Category Filters Slider */}
+                  {/* Category Filters Slider (All Channels & Categories Only) */}
                   <CategoryPicker
                     selectedCategoryId={selectedCategoryId}
                     onSelectCategory={setSelectedCategoryId}
                     activeTheme={activeTheme}
                   />
-
-                  {/* Country Filter Chips */}
-                  <CountryPicker
-                    selectedCountryCode={selectedCountryCode}
-                    onSelectCountry={setSelectedCountryCode}
-                    activeTheme={activeTheme}
-                  />
                 </View>
-              )}
-
-              {/* Trending Spotlight Live Banner Carousel */}
-              {activeTab === 'home' && searchQuery === '' && (
-                <SpotlightBanner
-                  channels={filteredChannels}
-                  onSelectChannel={handleSelectChannel}
-                  activeTheme={activeTheme}
-                />
               )}
 
               {/* Device-Responsive Channel Grid */}
