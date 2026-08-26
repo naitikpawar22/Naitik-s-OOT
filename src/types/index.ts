@@ -12,6 +12,7 @@ export interface Channel {
   isFavorite?: boolean;
   quality?: string;
   priorityRank?: number;
+  isNsfw?: boolean;
 }
 
 export interface CategoryItem {

@@ -62,19 +62,37 @@ export const CATEGORIES: CategoryItem[] = [
     id: 'entertainment',
     name: 'Entertainment 🎬',
     icon: 'tv-outline',
-    categoryKeys: ['entertainment', 'series', 'comedy', 'general'],
+    categoryKeys: ['entertainment', 'series', 'comedy', 'general', 'culture', 'interactive', 'lifestyle'],
+  },
+  {
+    id: 'sports',
+    name: 'Sports ⚽',
+    icon: 'football',
+    categoryKeys: ['sports', 'auto', 'outdoor'],
+  },
+  {
+    id: 'music',
+    name: 'Music & Songs 🎵',
+    icon: 'musical-notes',
+    categoryKeys: ['music'],
   },
   {
     id: 'kids',
     name: 'Kids & Cartoons 👶',
     icon: 'happy',
-    categoryKeys: ['kids', 'animation', 'family', 'cartoon'],
+    categoryKeys: ['kids', 'animation', 'family'],
   },
   {
     id: 'devotional',
     name: 'Devotional / Bhakti 🕉️',
     icon: 'heart-circle',
-    categoryKeys: ['religious', 'devotional', 'bhakti', 'spiritual'],
+    categoryKeys: ['religious', 'devotional', 'bhakti', 'relax'],
+  },
+  {
+    id: 'documentary',
+    name: 'Documentary & Science 🧪',
+    icon: 'planet',
+    categoryKeys: ['documentary', 'science', 'education', 'travel'],
   },
 ];
 

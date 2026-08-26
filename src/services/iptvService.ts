@@ -221,12 +221,10 @@ export const IPTVService = {
           });
         }
 
-        // Map raw channels by channel ID
+        // Map raw channels by channel ID (including adult / nsfw channels)
         const channelMap = new Map<string, RawApiChannel>();
         rawChannels.forEach((ch) => {
-          if (!ch.is_nsfw) {
-            channelMap.set(ch.id, ch);
-          }
+          channelMap.set(ch.id, ch);
         });
 
         const mergedList: Channel[] = [];
@@ -252,10 +250,27 @@ export const IPTVService = {
 
           const countryCode = chMeta ? chMeta.country : undefined;
           const rawLangs = chMeta?.languages || [];
+          const nameLower = channelName.toLowerCase();
+          const idLower = channelId.toLowerCase();
+
+          // Adult / NSFW Channel Flag
+          const isAdult =
+            chMeta?.is_nsfw === true ||
+            rawCats.includes('xxx') ||
+            nameLower.includes('xxx') ||
+            idLower.includes('xxx') ||
+            nameLower.includes('adult') ||
+            nameLower.includes('playboy') ||
+            nameLower.includes('hustler') ||
+            nameLower.includes('penthouse') ||
+            nameLower.includes('brazzers') ||
+            nameLower.includes('dorcel') ||
+            nameLower.includes('redlight') ||
+            nameLower.includes('vivid') ||
+            nameLower.includes('exotic');
 
           // Intelligent detection for Marathi (mr), Hindi (hi), English (en), Regional (reg)
           let detectedLang = 'reg';
-          const nameLower = channelName.toLowerCase();
 
           if (
             rawLangs.includes('mar') ||
@@ -355,6 +370,7 @@ export const IPTVService = {
             url: stream.url,
             tvgId: channelId,
             priorityRank,
+            isNsfw: isAdult,
           });
         });
 
@@ -399,6 +415,14 @@ export const IPTVService = {
       const nameLower = ch.name.toLowerCase();
       const idLower = (ch.tvgId || '').toLowerCase();
       const chCountry = (ch.country || '').toLowerCase();
+
+      // Secret NSFW Content Handler:
+      // Adult/XXX channels are HIDDEN from normal browsing/category filters by default.
+      // They ONLY show when user explicitly types 'xxx' or 'adult' in the search bar!
+      const isSearchingForAdult = q.includes('xxx') || q.includes('adult') || q.includes('sex') || q.includes('x-rated');
+      if (ch.isNsfw && !isSearchingForAdult) {
+        return false;
+      }
 
       // Country Filter (Default: IN)
       if (countryCode !== 'all' && countryCode !== '') {
