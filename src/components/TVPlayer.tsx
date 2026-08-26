@@ -32,14 +32,23 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
 
   const [isPlaying, setIsPlaying] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLandscapeMode, setIsLandscapeMode] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [focusedControl, setFocusedControl] = useState<string | null>(null);
+
+  // Gesture double-tap seek states (-5s / +5s)
+  const [seekFeedback, setSeekFeedback] = useState<{ type: 'rewind' | 'forward'; amount: number } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const containerWidthRef = useRef<number>(360);
+  const lastTapRef = useRef<{ time: number; x: number }>({ time: 0, x: 0 });
 
   const containerRef = useRef<View>(null);
   const webVideoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
   const retryCountRef = useRef<number>(0);
   const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // expo-video player for native mobile (Android / iOS)
   const nativePlayer = useVideoPlayer(channel?.url || '', (player) => {
@@ -49,7 +58,7 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
     }
   });
 
-  // Auto-hide overlay controls after 4 seconds of inactivity
+  // Auto-hide overlay controls after 4.5 seconds of inactivity
   const resetControlsTimeout = () => {
     setShowControls(true);
     if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
@@ -64,6 +73,8 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
     resetControlsTimeout();
     return () => {
       if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+      if (seekTimerRef.current) clearTimeout(seekTimerRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, [activePanel]);
 
@@ -202,6 +213,84 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
 
   if (!channel) return null;
 
+  // Toggle Screen Orientation (Portrait <-> Landscape)
+  const toggleOrientation = () => {
+    resetControlsTimeout();
+    const nextLandscape = !isLandscapeMode;
+    setIsLandscapeMode(nextLandscape);
+
+    showToast(nextLandscape ? 'Switched to Landscape Mode 📱↔️📺' : 'Switched to Portrait Mode 📱');
+
+    const screenOri = typeof screen !== 'undefined' ? (screen as any).orientation : null;
+    if (Platform.OS === 'web' && screenOri && typeof screenOri.lock === 'function') {
+      if (nextLandscape) {
+        screenOri.lock('landscape').catch(() => {});
+      } else {
+        screenOri.unlock();
+      }
+    }
+  };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 2000);
+  };
+
+  // Perform seek (seconds: -5 or +5)
+  const performSeek = (seconds: number) => {
+    resetControlsTimeout();
+    if (Platform.OS === 'web' && webVideoRef.current) {
+      const curTime = webVideoRef.current.currentTime || 0;
+      webVideoRef.current.currentTime = Math.max(0, curTime + seconds);
+    } else if (nativePlayer) {
+      try {
+        if (typeof (nativePlayer as any).seekBy === 'function') {
+          (nativePlayer as any).seekBy(seconds);
+        } else {
+          const curTime = nativePlayer.currentTime || 0;
+          nativePlayer.currentTime = Math.max(0, curTime + seconds);
+        }
+      } catch (err) {
+        console.warn('Native seek error:', err);
+      }
+    }
+
+    // Trigger visual YouTube seek ripple
+    const type = seconds < 0 ? 'rewind' : 'forward';
+    setSeekFeedback({ type, amount: Math.abs(seconds) });
+    if (seekTimerRef.current) clearTimeout(seekTimerRef.current);
+    seekTimerRef.current = setTimeout(() => {
+      setSeekFeedback(null);
+    }, 850);
+  };
+
+  // Handle Touch Gesture for YouTube-style double-tap on Left (-5s) or Right (+5s)
+  const handleTouchEnd = (e: any) => {
+    const now = Date.now();
+    const touchX = e.nativeEvent?.locationX || e.nativeEvent?.pageX || 0;
+    const totalWidth = containerWidthRef.current || 360;
+
+    const timeDiff = now - lastTapRef.current.time;
+    const isSameSide = Math.abs(touchX - lastTapRef.current.x) < totalWidth * 0.45;
+
+    if (timeDiff < 300 && isSameSide) {
+      // Double tap confirmed!
+      if (touchX < totalWidth * 0.45) {
+        performSeek(-5);
+      } else if (touchX > totalWidth * 0.55) {
+        performSeek(5);
+      }
+      lastTapRef.current = { time: 0, x: 0 };
+    } else {
+      // Single tap -> toggle control visibility or reset hide timer
+      lastTapRef.current = { time: now, x: touchX };
+      resetControlsTimeout();
+    }
+  };
+
   const togglePlayPause = () => {
     resetControlsTimeout();
     if (isPlaying) {
@@ -314,8 +403,15 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
   return (
     <View
       ref={containerRef}
-      style={[styles.container, isFullscreen && styles.fullscreenContainer]}
-      onTouchStart={resetControlsTimeout}
+      style={[
+        styles.container,
+        isFullscreen && styles.fullscreenContainer,
+        isLandscapeMode && !isFullscreen && styles.landscapeContainer,
+      ]}
+      onLayout={(e) => {
+        containerWidthRef.current = e.nativeEvent.layout.width;
+      }}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Video View Wrapper */}
       <View style={styles.videoWrapper}>
@@ -328,7 +424,6 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
               backgroundColor: '#000',
               ...getWebObjectFitStyle(),
             }}
-            onClick={resetControlsTimeout}
           />
         ) : (
           <VideoView
@@ -336,6 +431,29 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
             style={styles.nativeVideo}
             contentFit={fitMode === 'cover' ? 'cover' : fitMode === 'fill' ? 'fill' : 'contain'}
           />
+        )}
+
+        {/* YouTube Double-Tap Seek (-5s Rewind) Overlay Ripple */}
+        {seekFeedback?.type === 'rewind' && (
+          <View style={styles.seekRippleLeft}>
+            <Ionicons name="play-back" size={32} color="#FFF" />
+            <Text style={styles.seekRippleText}>-{seekFeedback.amount}s</Text>
+          </View>
+        )}
+
+        {/* YouTube Double-Tap Seek (+5s Forward) Overlay Ripple */}
+        {seekFeedback?.type === 'forward' && (
+          <View style={styles.seekRippleRight}>
+            <Ionicons name="play-forward" size={32} color="#FFF" />
+            <Text style={styles.seekRippleText}>+{seekFeedback.amount}s</Text>
+          </View>
+        )}
+
+        {/* Toast Alert Indicator */}
+        {toastMessage && (
+          <View style={styles.toastCard}>
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
         )}
 
         {/* Loading Spinner Overlay */}
@@ -401,6 +519,20 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
               </View>
 
               <View style={styles.topRightGroup}>
+                {/* Screen Rotation Control Button (Portrait <-> Landscape) */}
+                <TouchableOpacity
+                  style={[styles.topControlBtn, focusedControl === 'rotate' && styles.focusedBtn, isLandscapeMode && styles.topControlBtnActive]}
+                  onPress={toggleOrientation}
+                  onFocus={() => {
+                    resetControlsTimeout();
+                    setFocusedControl('rotate');
+                  }}
+                  onBlur={() => setFocusedControl(null)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name={isLandscapeMode ? 'phone-portrait-outline' : 'phone-landscape-outline'} size={19} color="#FFF" />
+                </TouchableOpacity>
+
                 {/* Settings Gear Button (YouTube Style) */}
                 <TouchableOpacity
                   style={[styles.topControlBtn, focusedControl === 'settings' && styles.focusedBtn, activePanel !== 'none' && styles.topControlBtnActive]}
@@ -1018,5 +1150,61 @@ const styles = StyleSheet.create({
   modalChipTextActive: {
     color: '#FFF',
     fontWeight: '800',
+  },
+  landscapeContainer: {
+    aspectRatio: 16 / 9,
+    width: '100%',
+    maxHeight: '100%',
+  },
+  seekRippleLeft: {
+    position: 'absolute',
+    left: 20,
+    top: '40%',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 40,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  seekRippleRight: {
+    position: 'absolute',
+    right: 20,
+    top: '40%',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 40,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  seekRippleText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  toastCard: {
+    position: 'absolute',
+    top: 60,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.accentLight,
+    zIndex: 60,
+  },
+  toastText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
