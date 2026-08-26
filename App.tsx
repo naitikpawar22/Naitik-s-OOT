@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Header } from './src/components/Header';
 import { CategoryPicker } from './src/components/CategoryPicker';
@@ -201,7 +202,10 @@ export default function App() {
     }
   }, [playingChannel, displayedGridChannels, handleSelectChannel]);
 
-  const dynamicStyles = useMemo(() => getStyles(activeTheme), [activeTheme]);
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+
+  const dynamicStyles = useMemo(() => getStyles(activeTheme, isLandscape), [activeTheme, isLandscape]);
 
   return (
     <SafeAreaView style={dynamicStyles.safeArea}>
@@ -336,12 +340,12 @@ export default function App() {
   );
 }
 
-const getStyles = (theme: ThemePalette) =>
+const getStyles = (theme: ThemePalette, isLandscape: boolean = false) =>
   StyleSheet.create({
     safeArea: {
       flex: 1,
       backgroundColor: theme.colors.cardBg,
-      paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0,
+      paddingTop: Platform.OS === 'android' ? (isLandscape ? 0 : (StatusBar.currentHeight || 20)) : 0,
     },
     mainContainer: {
       flex: 1,
@@ -356,7 +360,7 @@ const getStyles = (theme: ThemePalette) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: theme.spacing.md,
-      paddingVertical: 6,
+      paddingVertical: isLandscape ? 3 : 6,
       backgroundColor: theme.mode === 'light' ? '#E2E8F0' : 'rgba(255, 255, 255, 0.03)',
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
