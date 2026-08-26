@@ -24,15 +24,40 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [qualityLevels, setQualityLevels] = useState<VideoQualityLevel[]>([]);
   const [selectedQuality, setSelectedQuality] = useState<number>(-1); // -1 = Auto
   const [activePanel, setActivePanel] = useState<'none' | 'fit' | 'quality'>('none');
   const [fitMode, setFitMode] = useState<ScreenFitMode>('cover'); // Default: Cut-to-Cut edge-to-edge fill!
   const [fastStreamMode, setFastStreamMode] = useState(true); // Low Internet optimization
+  const [fitToast, setFitToast] = useState<string | null>(null);
+  const [showControls, setShowControls] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const webVideoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
   const retryCountRef = useRef<number>(0);
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-hide controls after 4 seconds
+  const triggerControlsOverlay = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    controlsTimeoutRef.current = setTimeout(() => {
+      if (activePanel === 'none') {
+        setShowControls(false);
+      }
+    }, 4000);
+  };
+
+  useEffect(() => {
+    triggerControlsOverlay();
+    return () => {
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    };
+  }, [activePanel]);
 
   // expo-video player for native mobile (Android / iOS)
   const nativePlayer = useVideoPlayer(channel?.url || '', (player) => {
@@ -175,6 +200,18 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
 
   if (!channel) return null;
 
+  const togglePlayPause = () => {
+    const nextPlaying = !isPlaying;
+    setIsPlaying(nextPlaying);
+    if (Platform.OS === 'web' && webVideoRef.current) {
+      if (nextPlaying) webVideoRef.current.play();
+      else webVideoRef.current.pause();
+    } else if (nativePlayer) {
+      if (nextPlaying) nativePlayer.play();
+      else nativePlayer.pause();
+    }
+  };
+
   const toggleMute = () => {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
@@ -183,6 +220,28 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
     } else if (nativePlayer) {
       nativePlayer.muted = nextMuted;
     }
+  };
+
+  // Direct 1-Tap Cut-to-Cut Fit Video Aspect Ratio Cycler
+  const handleCutToCutFitToggle = () => {
+    let nextMode: ScreenFitMode = 'cover';
+    let toastLabel = 'Cut-to-Cut ✂️ (Edge-to-Edge)';
+
+    if (fitMode === 'cover') {
+      nextMode = 'contain';
+      toastLabel = 'Fit Screen 📺 (Standard Ratio)';
+    } else if (fitMode === 'contain') {
+      nextMode = 'fill';
+      toastLabel = 'Stretch Full 📐 (100% Stretch)';
+    } else {
+      nextMode = 'cover';
+      toastLabel = 'Cut-to-Cut ✂️ (Edge-to-Edge)';
+    }
+
+    setFitMode(nextMode);
+    setFitToast(toastLabel);
+    triggerControlsOverlay();
+    setTimeout(() => setFitToast(null), 2500);
   };
 
   const changeQualityLevel = (levelIndex: number) => {
@@ -236,37 +295,43 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isFullscreen && styles.fullscreenContainer]}>
       {/* Clean Compact Top Header */}
-      <View style={styles.headerOverlay}>
-        {onClosePlayer && (
-          <TouchableOpacity style={styles.backBtnSmall} onPress={onClosePlayer} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={16} color="#FFF" />
-            <Text style={styles.backBtnTextSmall}>Back</Text>
-          </TouchableOpacity>
-        )}
+      {showControls && (
+        <View style={styles.headerOverlay}>
+          {onClosePlayer && (
+            <TouchableOpacity style={styles.backBtnSmall} onPress={onClosePlayer} activeOpacity={0.7}>
+              <Ionicons name="arrow-back" size={16} color="#FFF" />
+              <Text style={styles.backBtnTextSmall}>Back</Text>
+            </TouchableOpacity>
+          )}
 
-        <View style={styles.channelInfoCompact}>
-          <View style={styles.liveBadgeSmall}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveBadgeTextSmall}>LIVE</Text>
+          <View style={styles.channelInfoCompact}>
+            <View style={styles.liveBadgeSmall}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveBadgeTextSmall}>LIVE</Text>
+            </View>
+            <Text style={styles.channelNameCompact} numberOfLines={1}>
+              {channel.name}
+            </Text>
           </View>
-          <Text style={styles.channelNameCompact} numberOfLines={1}>
-            {channel.name}
-          </Text>
-        </View>
 
-        <TouchableOpacity style={styles.muteBtnSmall} onPress={toggleMute} activeOpacity={0.7}>
-          <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={18} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.muteBtnSmall} onPress={toggleMute} activeOpacity={0.7}>
+            <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={18} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Video View Wrapper */}
-      <View style={styles.videoWrapper}>
+      <TouchableOpacity
+        style={styles.videoWrapper}
+        activeOpacity={1}
+        onPress={triggerControlsOverlay}
+      >
         {Platform.OS === 'web' ? (
           <video
             ref={webVideoRef}
-            controls
+            controls={false}
             autoPlay
             style={{
               backgroundColor: '#000',
@@ -279,6 +344,45 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
             style={styles.nativeVideo}
             contentFit={fitMode === 'cover' ? 'cover' : fitMode === 'fill' ? 'fill' : 'contain'}
           />
+        )}
+
+        {/* Floating Toast Notification for Cut-to-Cut Fit Change */}
+        {fitToast && (
+          <View style={styles.toastBadge}>
+            <Ionicons name="scan-sharp" size={18} color="#10B981" style={{ marginRight: 6 }} />
+            <Text style={styles.toastText}>{fitToast}</Text>
+          </View>
+        )}
+
+        {/* Center Playback Overlay (Seek 5s Back, Play/Pause, Seek 15s Forward) */}
+        {showControls && !loading && !error && (
+          <View style={styles.centerPlaybackControls}>
+            <TouchableOpacity
+              style={styles.seekCircleBtn}
+              onPress={() => triggerControlsOverlay()}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="play-back" size={22} color="#FFF" />
+              <Text style={styles.seekBtnText}>5s</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.mainPlayPauseCircleBtn}
+              onPress={togglePlayPause}
+              activeOpacity={0.8}
+            >
+              <Ionicons name={isPlaying ? 'pause' : 'play'} size={32} color="#FFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.seekCircleBtn}
+              onPress={() => triggerControlsOverlay()}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="play-forward" size={22} color="#FFF" />
+              <Text style={styles.seekBtnText}>15s</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Loading Spinner Overlay */}
@@ -304,7 +408,7 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
             </View>
           </View>
         )}
-      </View>
+      </TouchableOpacity>
 
       {/* Slide-Up Panel 1: Screen Fit / Cut-to-Cut Options */}
       {activePanel === 'fit' && (
@@ -322,6 +426,8 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
               onPress={() => {
                 setFitMode('cover');
                 setActivePanel('none');
+                setFitToast('Cut-to-Cut ✂️ (Edge-to-Edge)');
+                setTimeout(() => setFitToast(null), 2000);
               }}
             >
               <Text style={[styles.panelOptionText, fitMode === 'cover' && styles.panelOptionTextActive]}>
@@ -334,6 +440,8 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
               onPress={() => {
                 setFitMode('contain');
                 setActivePanel('none');
+                setFitToast('Fit Screen 📺');
+                setTimeout(() => setFitToast(null), 2000);
               }}
             >
               <Text style={[styles.panelOptionText, fitMode === 'contain' && styles.panelOptionTextActive]}>
@@ -346,6 +454,8 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
               onPress={() => {
                 setFitMode('fill');
                 setActivePanel('none');
+                setFitToast('Stretch Full 📐');
+                setTimeout(() => setFitToast(null), 2000);
               }}
             >
               <Text style={[styles.panelOptionText, fitMode === 'fill' && styles.panelOptionTextActive]}>
@@ -358,6 +468,8 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
               onPress={() => {
                 setFitMode('16:9');
                 setActivePanel('none');
+                setFitToast('16:9 Ratio 🎞️');
+                setTimeout(() => setFitToast(null), 2000);
               }}
             >
               <Text style={[styles.panelOptionText, fitMode === '16:9' && styles.panelOptionTextActive]}>
@@ -370,6 +482,8 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
               onPress={() => {
                 setFitMode('4:3');
                 setActivePanel('none');
+                setFitToast('4:3 TV 📽️');
+                setTimeout(() => setFitToast(null), 2000);
               }}
             >
               <Text style={[styles.panelOptionText, fitMode === '4:3' && styles.panelOptionTextActive]}>
@@ -380,11 +494,11 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
         </View>
       )}
 
-      {/* Slide-Up Panel 2: Picture Quality Options */}
+      {/* Slide-Up Panel 2: Picture Quality & Stream Settings Options */}
       {activePanel === 'quality' && (
         <View style={styles.slidePanelContainer}>
           <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>⚙️ Select Video Resolution Quality</Text>
+            <Text style={styles.panelTitle}>⚙️ Stream & Quality Settings</Text>
             <TouchableOpacity onPress={() => setActivePanel('none')}>
               <Ionicons name="close-circle" size={20} color={theme.colors.textMuted} />
             </TouchableOpacity>
@@ -396,7 +510,7 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
               onPress={() => changeQualityLevel(-1)}
             >
               <Text style={[styles.panelOptionText, selectedQuality === -1 && styles.panelOptionTextActive]}>
-                Auto (Low Internet)
+                Auto (Low Internet Buffer)
               </Text>
             </TouchableOpacity>
 
@@ -415,7 +529,7 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
                     </TouchableOpacity>
                   );
                 })
-              : ['1080p', '720p', '480p', '360p'].map((res, i) => (
+              : ['1080p HD', '720p HD', '480p SD', '360p Low'].map((res, i) => (
                   <TouchableOpacity
                     key={res}
                     style={styles.panelOptionChip}
@@ -425,68 +539,88 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
                   </TouchableOpacity>
                 ))}
           </View>
+
+          {/* Quick Settings Row */}
+          <View style={styles.quickSettingsSubRow}>
+            <TouchableOpacity
+              style={[styles.quickSettingBtn, fastStreamMode && styles.quickSettingBtnActive]}
+              onPress={() => setFastStreamMode(!fastStreamMode)}
+            >
+              <Ionicons name="flash" size={14} color={fastStreamMode ? '#F59E0B' : '#FFF'} style={{ marginRight: 4 }} />
+              <Text style={[styles.quickSettingText, fastStreamMode && { color: '#F59E0B' }]}>
+                Fast Mode ({fastStreamMode ? 'ON' : 'OFF'})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickSettingBtn}
+              onPress={toggleMute}
+            >
+              <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={14} color="#FFF" style={{ marginRight: 4 }} />
+              <Text style={styles.quickSettingText}>{isMuted ? 'Unmute Audio' : 'Mute Audio'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
-      {/* Bottom 3-Button Slide Toolbar */}
-      <View style={styles.bottomToolbar}>
-        {/* Previous Channel */}
-        <TouchableOpacity
-          style={[styles.navChannelBtn, !onPrevChannel && styles.btnDisabled]}
-          onPress={onPrevChannel}
-          disabled={!onPrevChannel}
-        >
-          <Ionicons name="play-skip-back" size={16} color="#FFF" />
-        </TouchableOpacity>
-
-        {/* 3 Main Sliding Control Panel Buttons */}
-        <View style={styles.centerSlideActionGroup}>
-          {/* Button 1: Cut-to-Cut Screen Fit Slide Panel */}
+      {/* Bottom Control Bar Overlay (Matching Screenshot Specs) */}
+      {showControls && (
+        <View style={styles.bottomToolbar}>
+          {/* Previous Channel */}
           <TouchableOpacity
-            style={[styles.slideActionBtn, activePanel === 'fit' && styles.slideActionBtnActive]}
-            onPress={() => setActivePanel(activePanel === 'fit' ? 'none' : 'fit')}
-            activeOpacity={0.7}
+            style={[styles.navChannelBtn, !onPrevChannel && styles.btnDisabled]}
+            onPress={onPrevChannel}
+            disabled={!onPrevChannel}
           >
-            <Ionicons name="scan-outline" size={15} color={activePanel === 'fit' ? '#FFF' : '#10B981'} />
-            <Text style={[styles.slideActionText, activePanel === 'fit' && styles.slideActionTextActive]}>
-              {getFitModeLabel(fitMode)}
-            </Text>
+            <Ionicons name="play-skip-back" size={16} color="#FFF" />
           </TouchableOpacity>
 
-          {/* Button 2: Stream Resolution Quality Slide Panel */}
-          <TouchableOpacity
-            style={[styles.slideActionBtn, activePanel === 'quality' && styles.slideActionBtnActive]}
-            onPress={() => setActivePanel(activePanel === 'quality' ? 'none' : 'quality')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="settings-outline" size={15} color={activePanel === 'quality' ? '#FFF' : theme.colors.accentLight} />
-            <Text style={[styles.slideActionText, activePanel === 'quality' && styles.slideActionTextActive]}>
-              Quality ({getCurrentQualityLabel()})
-            </Text>
-          </TouchableOpacity>
+          {/* Stream Time / Live Badge */}
+          <View style={styles.streamTimeDisplay}>
+            <View style={styles.redLiveDot} />
+            <Text style={styles.streamTimeText}>LIVE Broadcast</Text>
+          </View>
 
-          {/* Button 3: Low Internet Speed Fast Mode Toggle */}
-          <TouchableOpacity
-            style={[styles.slideActionBtn, fastStreamMode && styles.fastModeBtnActive]}
-            onPress={() => setFastStreamMode(!fastStreamMode)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="flash" size={15} color={fastStreamMode ? '#F59E0B' : '#FFF'} />
-            <Text style={[styles.slideActionText, fastStreamMode && styles.fastModeTextActive]}>
-              Fast Mode
-            </Text>
-          </TouchableOpacity>
+          {/* Right Action Icons Group (Settings ⚙️, Cut-to-Cut Fit ✂️, Fullscreen ⛶) */}
+          <View style={styles.rightControlActionGroup}>
+            {/* 1. Settings ⚙️ Icon Button */}
+            <TouchableOpacity
+              style={[styles.iconActionBtn, activePanel === 'quality' && styles.iconActionBtnActive]}
+              onPress={() => setActivePanel(activePanel === 'quality' ? 'none' : 'quality')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="settings-sharp" size={19} color={activePanel === 'quality' ? theme.colors.accentLight : '#FFF'} />
+            </TouchableOpacity>
+
+            {/* 2. Direct Cut-to-Cut Fit ✂️ Icon Button */}
+            <TouchableOpacity
+              style={[styles.iconActionBtn, fitMode === 'cover' && styles.iconActionBtnActive]}
+              onPress={handleCutToCutFitToggle}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="scan-sharp" size={19} color={fitMode === 'cover' ? '#10B981' : '#FFF'} />
+            </TouchableOpacity>
+
+            {/* 3. Fullscreen ⛶ Icon Button */}
+            <TouchableOpacity
+              style={styles.iconActionBtn}
+              onPress={() => setIsFullscreen(!isFullscreen)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name={isFullscreen ? 'contract-sharp' : 'expand-sharp'} size={19} color="#FFF" />
+            </TouchableOpacity>
+
+            {/* Next Channel */}
+            <TouchableOpacity
+              style={[styles.navChannelBtn, !onNextChannel && styles.btnDisabled, { marginLeft: 6 }]}
+              onPress={onNextChannel}
+              disabled={!onNextChannel}
+            >
+              <Ionicons name="play-skip-forward" size={16} color="#FFF" />
+            </TouchableOpacity>
+          </View>
         </View>
-
-        {/* Next Channel */}
-        <TouchableOpacity
-          style={[styles.navChannelBtn, !onNextChannel && styles.btnDisabled]}
-          onPress={onNextChannel}
-          disabled={!onNextChannel}
-        >
-          <Ionicons name="play-skip-forward" size={16} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+      )}
     </View>
   );
 };
@@ -735,5 +869,118 @@ const styles = StyleSheet.create({
   },
   btnDisabled: {
     opacity: 0.3,
+  },
+  fullscreenContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
+    borderRadius: 0,
+    borderWidth: 0,
+  },
+  toastBadge: {
+    position: 'absolute',
+    top: 18,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderColor: '#10B981',
+    zIndex: 100,
+  },
+  toastText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  centerPlaybackControls: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 50,
+  },
+  seekCircleBtn: {
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 16,
+  },
+  seekBtnText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: -2,
+  },
+  mainPlayPauseCircleBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickSettingsSubRow: {
+    flexDirection: 'row',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  quickSettingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginRight: 8,
+  },
+  quickSettingBtnActive: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+  },
+  quickSettingText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  streamTimeDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  redLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+    marginRight: 5,
+  },
+  streamTimeText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  rightControlActionGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconActionBtn: {
+    padding: 8,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginLeft: 4,
+  },
+  iconActionBtnActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
 });
