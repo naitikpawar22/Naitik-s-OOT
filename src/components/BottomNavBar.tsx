@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { darkTheme, ThemePalette } from '../styles/theme';
@@ -12,13 +12,13 @@ interface BottomNavBarProps {
   activeTheme?: ThemePalette;
 }
 
-export const BottomNavBar: React.FC<BottomNavBarProps> = ({
+export const BottomNavBarComponent: React.FC<BottomNavBarProps> = ({
   activeTab,
   onTabChange,
   favoritesCount,
   activeTheme = darkTheme,
 }) => {
-  const styles = getStyles(activeTheme);
+  const styles = useMemo(() => getStyles(activeTheme), [activeTheme]);
 
   return (
     <View style={styles.container}>
@@ -27,6 +27,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         style={[styles.tabBtn, activeTab === 'home' && styles.tabBtnActive]}
         onPress={() => onTabChange('home')}
         activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       >
         <Ionicons
           name={activeTab === 'home' ? 'home' : 'home-outline'}
@@ -43,6 +44,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         style={[styles.tabBtn, activeTab === 'movies' && styles.tabBtnActive]}
         onPress={() => onTabChange('movies')}
         activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       >
         <Ionicons
           name={activeTab === 'movies' ? 'film' : 'film-outline'}
@@ -59,6 +61,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         style={[styles.tabBtn, activeTab === 'favorites' && styles.tabBtnActive]}
         onPress={() => onTabChange('favorites')}
         activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       >
         <View style={styles.iconBadgeWrapper}>
           <Ionicons
@@ -82,6 +85,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         style={[styles.tabBtn, activeTab === 'settings' && styles.tabBtnActive]}
         onPress={() => onTabChange('settings')}
         activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       >
         <Ionicons
           name={activeTab === 'settings' ? 'settings' : 'settings-outline'}
@@ -95,6 +99,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
     </View>
   );
 };
+
+export const BottomNavBar = React.memo(BottomNavBarComponent);
 
 const getStyles = (theme: ThemePalette) =>
   StyleSheet.create({
@@ -161,3 +167,4 @@ const getStyles = (theme: ThemePalette) =>
       fontWeight: '800',
     },
   });
+

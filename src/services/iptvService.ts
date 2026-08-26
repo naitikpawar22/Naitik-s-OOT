@@ -317,6 +317,31 @@ export const IPTVService = {
             channelLogoUrl = `https://iptv-org.github.io/iptv/logos/${channelId}.png`;
           }
 
+          const priorityRank =
+            detectedLang === 'mr' ||
+            nameLower.includes('marathi') ||
+            nameLower.includes('majha') ||
+            nameLower.includes('lokmat') ||
+            nameLower.includes('saam') ||
+            nameLower.includes('taas') ||
+            nameLower.includes('pravah') ||
+            nameLower.includes('sahyadri')
+              ? 1
+              : detectedLang === 'hi' ||
+                nameLower.includes('hindi') ||
+                nameLower.includes('tak') ||
+                nameLower.includes('aaj tak') ||
+                nameLower.includes('ndtv india') ||
+                nameLower.includes('zee news') ||
+                nameLower.includes('abp news') ||
+                nameLower.includes('dangal') ||
+                nameLower.includes('goldmines') ||
+                nameLower.includes('bollywood')
+              ? 2
+              : countryCode === 'IN'
+              ? 3
+              : 4;
+
           mergedList.push({
             id: `${channelId}_${index}`,
             name: `${channelName}${qualitySuffix}`,
@@ -329,6 +354,7 @@ export const IPTVService = {
             quality: qualityStr,
             url: stream.url,
             tvgId: channelId,
+            priorityRank,
           });
         });
 
@@ -508,47 +534,8 @@ export const IPTVService = {
       return true;
     });
 
-    // Priority Sort: Marathi Channels (1st) -> Hindi Channels (2nd) -> Other Indian Channels (3rd) -> Rest
-    return filtered.sort((a, b) => {
-      const getPriorityRank = (ch: Channel): number => {
-        const n = ch.name.toLowerCase();
-        if (
-          ch.language === 'mr' ||
-          n.includes('marathi') ||
-          n.includes('majha') ||
-          n.includes('lokmat') ||
-          n.includes('saam') ||
-          n.includes('taas') ||
-          n.includes('pravah') ||
-          n.includes('sahyadri')
-        ) {
-          return 1; // Top priority: Marathi
-        }
-        if (
-          ch.language === 'hi' ||
-          n.includes('hindi') ||
-          n.includes('tak') ||
-          n.includes('aaj tak') ||
-          n.includes('ndtv india') ||
-          n.includes('zee news') ||
-          n.includes('abp news') ||
-          n.includes('dangal') ||
-          n.includes('goldmines') ||
-          n.includes('bollywood')
-        ) {
-          return 2; // 2nd priority: Hindi & Hindi Movies/News
-        }
-        if (ch.country === 'IN') {
-          return 3; // 3rd priority: Other Indian regional channels
-        }
-        return 4; // Rest of channels
-      };
-
-      const rankA = getPriorityRank(a);
-      const rankB = getPriorityRank(b);
-
-      return rankA - rankB;
-    });
+    // Priority Sort: Fast Integer Subtraction
+    return filtered.sort((a, b) => (a.priorityRank || 4) - (b.priorityRank || 4));
   },
 
   getSampleChannels(): Channel[] {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, useWindowDimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { darkTheme, ThemePalette } from '../styles/theme';
@@ -14,7 +14,7 @@ interface HeaderProps {
   activeTheme?: ThemePalette;
 }
 
-export const Header: React.FC<HeaderProps> = ({
+export const HeaderComponent: React.FC<HeaderProps> = ({
   searchQuery,
   onSearchChange,
   channelCount,
@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 480;
-  const styles = getStyles(activeTheme);
+  const styles = useMemo(() => getStyles(activeTheme), [activeTheme]);
 
   return (
     <View style={styles.container}>
@@ -60,7 +60,11 @@ export const Header: React.FC<HeaderProps> = ({
             clearButtonMode="while-editing"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => onSearchChange('')} style={styles.clearBtn}>
+            <TouchableOpacity
+              onPress={() => onSearchChange('')}
+              style={styles.clearBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Ionicons name="close-circle" size={16} color={activeTheme.colors.textMuted} />
             </TouchableOpacity>
           )}
@@ -71,6 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
           style={[styles.filterToggleBtn, isFilterOpen && styles.filterToggleBtnActive]}
           onPress={onToggleFilterDrawer}
           activeOpacity={0.8}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons
             name="options-outline"
@@ -97,6 +102,8 @@ export const Header: React.FC<HeaderProps> = ({
     </View>
   );
 };
+
+export const Header = React.memo(HeaderComponent);
 
 const getStyles = (theme: ThemePalette) =>
   StyleSheet.create({
@@ -199,3 +206,4 @@ const getStyles = (theme: ThemePalette) =>
       fontWeight: '900',
     },
   });
+

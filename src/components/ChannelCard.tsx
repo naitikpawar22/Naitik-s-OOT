@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Channel } from '../types';
@@ -13,7 +13,7 @@ interface ChannelCardProps {
   activeTheme?: ThemePalette;
 }
 
-export const ChannelCard: React.FC<ChannelCardProps> = ({
+export const ChannelCardComponent: React.FC<ChannelCardProps> = ({
   channel,
   isPlaying,
   isFavorite,
@@ -25,7 +25,7 @@ export const ChannelCard: React.FC<ChannelCardProps> = ({
   const [currentLogoUri, setCurrentLogoUri] = useState<string | undefined>(channel.logo);
   const [fallbackAttempt, setFallbackAttempt] = useState(0);
 
-  const styles = getStyles(activeTheme);
+  const styles = useMemo(() => getStyles(activeTheme), [activeTheme]);
 
   useEffect(() => {
     setCurrentLogoUri(channel.logo);
@@ -89,7 +89,7 @@ export const ChannelCard: React.FC<ChannelCardProps> = ({
         <TouchableOpacity
           style={styles.favButton}
           onPress={() => onToggleFavorite(channel.id)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Ionicons
             name={isFavorite ? 'heart' : 'heart-outline'}
@@ -128,6 +128,15 @@ export const ChannelCard: React.FC<ChannelCardProps> = ({
     </TouchableOpacity>
   );
 };
+
+export const ChannelCard = React.memo(ChannelCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.channel.id === nextProps.channel.id &&
+    prevProps.isPlaying === nextProps.isPlaying &&
+    prevProps.isFavorite === nextProps.isFavorite &&
+    prevProps.activeTheme?.mode === nextProps.activeTheme?.mode
+  );
+});
 
 const getStyles = (theme: ThemePalette) =>
   StyleSheet.create({
@@ -255,3 +264,4 @@ const getStyles = (theme: ThemePalette) =>
       borderRadius: 4,
     },
   });
+

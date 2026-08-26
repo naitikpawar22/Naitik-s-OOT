@@ -150,9 +150,25 @@ export const TVPlayer: React.FC<TVPlayerProps> = ({
       };
     } else {
       if (nativePlayer) {
-        nativePlayer.replace(channel.url);
-        nativePlayer.play();
-        setLoading(false);
+        let isMounted = true;
+        nativePlayer
+          .replaceAsync(channel.url)
+          .then(() => {
+            if (isMounted) {
+              nativePlayer.play();
+              setLoading(false);
+            }
+          })
+          .catch((err) => {
+            if (isMounted) {
+              console.warn('Failed to switch native channel stream:', err);
+              setLoading(false);
+            }
+          });
+
+        return () => {
+          isMounted = false;
+        };
       }
     }
   }, [channel, fastStreamMode, nativePlayer]);

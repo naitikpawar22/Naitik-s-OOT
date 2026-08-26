@@ -11,6 +11,7 @@ export interface Channel {
   tvgId?: string;
   isFavorite?: boolean;
   quality?: string;
+  priorityRank?: number;
 }
 
 export interface CategoryItem {
@@ -44,6 +45,26 @@ export interface VideoQualityLevel {
   label: string; // e.g. "1080p", "720p", "480p", "360p", "Auto"
 }
 
+export interface Movie {
+  id: string;
+  title: string;
+  originalTitle?: string;
+  posterUrl: string;
+  bannerUrl?: string;
+  rating: number; // e.g. 8.8
+  releaseYear: number; // e.g. 2024
+  duration: string; // e.g. "2h 15m"
+  genres: string[]; // ["Marathi", "Action", "Drama"]
+  language: 'mr' | 'hi' | 'en' | string;
+  overview: string;
+  cast?: string[];
+  director?: string;
+  streamUrl: string;
+  quality?: string; // "4K Ultra HD" | "1080p Full HD"
+  isNewRelease?: boolean;
+  isTrending?: boolean;
+}
+
 export interface StreamState {
   currentChannel: Channel | null;
   isPlaying: boolean;
@@ -53,3 +74,4 @@ export interface StreamState {
   isMuted: boolean;
   qualityLevel: number; // -1 for auto
 }
+

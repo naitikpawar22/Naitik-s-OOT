@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -44,6 +44,17 @@ export default function App() {
   });
 
   const [activeTab, setActiveTab] = useState<TabType>('home');
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabType>>(() => new Set(['home']));
+
+  const handleTabChange = useCallback((tab: TabType) => {
+    setActiveTab(tab);
+    setVisitedTabs((prev) => {
+      if (prev.has(tab)) return prev;
+      const next = new Set(prev);
+      next.add(tab);
+      return next;
+    });
+  }, []);
 
   const activeTheme: ThemePalette = userProfile.themeMode === 'light' ? lightTheme : darkTheme;
 
@@ -62,7 +73,7 @@ export default function App() {
 
       if (e.key === '9') {
         e.preventDefault();
-        setActiveTab('home');
+        handleTabChange('home');
         setTimeout(() => {
           searchInputRef.current?.focus();
         }, 100);
@@ -74,6 +85,19 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleTabChange]);
+
+  const loadAllJsonChannels = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const channels = await IPTVService.loadFromChannelsJson();
+      setAllChannels(channels);
+    } catch (e) {
+      console.warn('Failed to load JSON channels:', e);
+      setAllChannels(IPTVService.getSampleChannels());
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const loadInitialData = async () => {
@@ -89,74 +113,87 @@ export default function App() {
     await loadAllJsonChannels();
   };
 
-  const loadAllJsonChannels = async () => {
-    setIsLoading(true);
-    try {
-      const channels = await IPTVService.loadFromChannelsJson();
-      setAllChannels(channels);
-    } catch (e) {
-      console.warn('Failed to load JSON channels:', e);
-      setAllChannels(IPTVService.getSampleChannels());
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleToggleFavorite = async (channelId: string) => {
+  const handleToggleFavorite = useCallback(async (channelId: string) => {
     const updated = await StorageService.toggleFavorite(channelId);
     setFavorites(updated);
-  };
+  }, []);
 
-  const handleSelectChannel = (channel: Channel) => {
+  const handleSelectChannel = useCallback((channel: Channel) => {
     setPlayingChannel(channel);
     StorageService.addRecentChannel(channel);
-  };
+  }, []);
 
-  const handleClosePlayer = () => {
+  const handleClosePlayer = useCallback(() => {
     setPlayingChannel(null);
-  };
+  }, []);
 
-  const getFilteredChannels = (): Channel[] => {
-    let sourceChannels = allChannels;
-
-    if (activeTab === 'favorites') {
-      sourceChannels = allChannels.filter((ch) => favorites.includes(ch.id));
-    }
-
+  // Memoized filtered channels for Home tab (does NOT re-run on tab switches!)
+  const filteredChannels = useMemo(() => {
     return IPTVService.filterChannels(
-      sourceChannels,
+      allChannels,
       searchQuery,
       selectedCategoryId,
       selectedCountryCode,
       selectedLanguageCode
     );
-  };
+  }, [allChannels, searchQuery, selectedCategoryId, selectedCountryCode, selectedLanguageCode]);
 
-  const filteredChannels = getFilteredChannels();
+  // Memoized filtered channels for Favorites tab
+  const favoritesChannels = useMemo(() => {
+    if (favorites.length === 0) return [];
+    const favSet = new Set(favorites);
+    const favSource = allChannels.filter((ch) => favSet.has(ch.id));
+    return IPTVService.filterChannels(
+      favSource,
+      searchQuery,
+      selectedCategoryId,
+      selectedCountryCode,
+      selectedLanguageCode
+    );
+  }, [allChannels, favorites, searchQuery, selectedCategoryId, selectedCountryCode, selectedLanguageCode]);
 
-  const handleNextChannel = () => {
-    if (!playingChannel || filteredChannels.length === 0) return;
-    const currentIndex = filteredChannels.findIndex((c) => c.id === playingChannel.id);
-    if (currentIndex !== -1 && currentIndex < filteredChannels.length - 1) {
-      handleSelectChannel(filteredChannels[currentIndex + 1]);
+  const displayedGridChannels = activeTab === 'favorites' ? favoritesChannels : filteredChannels;
+
+  const movieChannels = useMemo(() => {
+    return allChannels.filter((c) => {
+      const cat = c.category.toLowerCase();
+      const name = c.name.toLowerCase();
+      return (
+        cat.includes('movie') ||
+        cat.includes('cinema') ||
+        cat.includes('film') ||
+        name.includes('movie') ||
+        name.includes('cinema') ||
+        name.includes('goldmines') ||
+        name.includes('bollywood')
+      );
+    });
+  }, [allChannels]);
+
+  const handleNextChannel = useCallback(() => {
+    if (!playingChannel || displayedGridChannels.length === 0) return;
+    const currentIndex = displayedGridChannels.findIndex((c) => c.id === playingChannel.id);
+    if (currentIndex !== -1 && currentIndex < displayedGridChannels.length - 1) {
+      handleSelectChannel(displayedGridChannels[currentIndex + 1]);
     }
-  };
+  }, [playingChannel, displayedGridChannels, handleSelectChannel]);
 
-  const handlePrevChannel = () => {
-    if (!playingChannel || filteredChannels.length === 0) return;
-    const currentIndex = filteredChannels.findIndex((c) => c.id === playingChannel.id);
+  const handlePrevChannel = useCallback(() => {
+    if (!playingChannel || displayedGridChannels.length === 0) return;
+    const currentIndex = displayedGridChannels.findIndex((c) => c.id === playingChannel.id);
     if (currentIndex > 0) {
-      handleSelectChannel(filteredChannels[currentIndex - 1]);
+      handleSelectChannel(displayedGridChannels[currentIndex - 1]);
     }
-  };
+  }, [playingChannel, displayedGridChannels, handleSelectChannel]);
 
-  const dynamicStyles = getStyles(activeTheme);
+  const dynamicStyles = useMemo(() => getStyles(activeTheme), [activeTheme]);
 
   return (
     <SafeAreaView style={dynamicStyles.safeArea}>
       <StatusBar
         barStyle={activeTheme.mode === 'light' ? 'dark-content' : 'light-content'}
         backgroundColor={activeTheme.colors.cardBg}
+        translucent={false}
       />
 
       <View style={dynamicStyles.mainContainer}>
@@ -194,90 +231,99 @@ export default function App() {
                 Welcome back, <Text style={dynamicStyles.userHighlight}>{userProfile.userName}</Text> 👋
               </Text>
               <Text style={dynamicStyles.greetingSub}>
-                {activeTab === 'movies' ? 'Movies & Live Cinema Portal' : activeTab === 'favorites' ? 'Your Saved Favorites' : activeTab === 'settings' ? 'OTT App Preferences' : 'Press 9 for Search • Press 0 for Filters'}
+                {activeTab === 'movies'
+                  ? 'Movies & Live Cinema Portal'
+                  : activeTab === 'favorites'
+                  ? 'Your Saved Favorites'
+                  : activeTab === 'settings'
+                  ? 'OTT App Preferences'
+                  : 'Press 9 for Search • Press 0 for Filters'}
               </Text>
             </View>
 
             {/* Tab 1 & 3: Home & Favorites Views */}
-            {(activeTab === 'home' || activeTab === 'favorites') && (
-              <View style={dynamicStyles.tabContent}>
-                {activeTab === 'home' && isFilterOpen && (
-                  <View style={dynamicStyles.filterSlidersContainer}>
-                    {/* Language Filters Slider */}
-                    <LanguagePicker
-                      selectedLanguageCode={selectedLanguageCode}
-                      onSelectLanguage={setSelectedLanguageCode}
-                      activeTheme={activeTheme}
-                    />
-
-                    {/* Category Filters Slider */}
-                    <CategoryPicker
-                      selectedCategoryId={selectedCategoryId}
-                      onSelectCategory={setSelectedCategoryId}
-                      activeTheme={activeTheme}
-                    />
-
-                    {/* Country Filter Chips */}
-                    <CountryPicker
-                      selectedCountryCode={selectedCountryCode}
-                      onSelectCountry={setSelectedCountryCode}
-                      activeTheme={activeTheme}
-                    />
-                  </View>
-                )}
-
-                {/* Trending Spotlight Live Banner Carousel */}
-                {activeTab === 'home' && searchQuery === '' && (
-                  <SpotlightBanner
-                    channels={filteredChannels}
-                    onSelectChannel={handleSelectChannel}
+            <View
+              style={[
+                dynamicStyles.tabContent,
+                { display: activeTab === 'home' || activeTab === 'favorites' ? 'flex' : 'none' },
+              ]}
+            >
+              {activeTab === 'home' && isFilterOpen && (
+                <View style={dynamicStyles.filterSlidersContainer}>
+                  {/* Language Filters Slider */}
+                  <LanguagePicker
+                    selectedLanguageCode={selectedLanguageCode}
+                    onSelectLanguage={setSelectedLanguageCode}
                     activeTheme={activeTheme}
                   />
-                )}
 
-                {/* Device-Responsive Channel Grid */}
-                <View style={dynamicStyles.gridWrapper}>
-                  <ChannelGrid
-                    channels={filteredChannels}
-                    playingChannelId={null}
-                    favorites={favorites}
-                    isLoading={isLoading}
-                    onSelectChannel={handleSelectChannel}
-                    onToggleFavorite={handleToggleFavorite}
-                    onRefresh={loadAllJsonChannels}
+                  {/* Category Filters Slider */}
+                  <CategoryPicker
+                    selectedCategoryId={selectedCategoryId}
+                    onSelectCategory={setSelectedCategoryId}
+                    activeTheme={activeTheme}
+                  />
+
+                  {/* Country Filter Chips */}
+                  <CountryPicker
+                    selectedCountryCode={selectedCountryCode}
+                    onSelectCountry={setSelectedCountryCode}
                     activeTheme={activeTheme}
                   />
                 </View>
+              )}
+
+              {/* Trending Spotlight Live Banner Carousel */}
+              {activeTab === 'home' && searchQuery === '' && (
+                <SpotlightBanner
+                  channels={filteredChannels}
+                  onSelectChannel={handleSelectChannel}
+                  activeTheme={activeTheme}
+                />
+              )}
+
+              {/* Device-Responsive Channel Grid */}
+              <View style={dynamicStyles.gridWrapper}>
+                <ChannelGrid
+                  channels={displayedGridChannels}
+                  playingChannelId={null}
+                  favorites={favorites}
+                  isLoading={isLoading}
+                  onSelectChannel={handleSelectChannel}
+                  onToggleFavorite={handleToggleFavorite}
+                  onRefresh={loadAllJsonChannels}
+                  activeTheme={activeTheme}
+                />
+              </View>
+            </View>
+
+            {/* Tab 2: Dedicated Movies Portal (Lazy Loaded on First Tap, then Kept Mounted) */}
+            {visitedTabs.has('movies') && (
+              <View style={{ display: activeTab === 'movies' ? 'flex' : 'none', flex: 1 }}>
+                <MoviesScreen
+                  movieChannels={movieChannels}
+                  onSelectMovie={handleSelectChannel}
+                  activeTheme={activeTheme}
+                />
               </View>
             )}
 
-            {/* Tab 2: Dedicated Movies Portal */}
-            {activeTab === 'movies' && (
-              <MoviesScreen
-                movieChannels={allChannels.filter((c) => {
-                  const cat = c.category.toLowerCase();
-                  const name = c.name.toLowerCase();
-                  return cat.includes('movie') || cat.includes('cinema') || cat.includes('film') || name.includes('movie') || name.includes('cinema') || name.includes('goldmines') || name.includes('bollywood');
-                })}
-                onSelectMovie={handleSelectChannel}
-                activeTheme={activeTheme}
-              />
-            )}
-
-            {/* Tab 4: Settings Screen */}
-            {activeTab === 'settings' && (
-              <SettingsScreen
-                userProfile={userProfile}
-                onUpdateProfile={setUserProfile}
-                channelCount={allChannels.length}
-                onReloadChannels={loadAllJsonChannels}
-              />
+            {/* Tab 4: Settings Screen (Lazy Loaded on First Tap, then Kept Mounted) */}
+            {visitedTabs.has('settings') && (
+              <View style={{ display: activeTab === 'settings' ? 'flex' : 'none', flex: 1 }}>
+                <SettingsScreen
+                  userProfile={userProfile}
+                  onUpdateProfile={setUserProfile}
+                  channelCount={allChannels.length}
+                  onReloadChannels={loadAllJsonChannels}
+                />
+              </View>
             )}
 
             {/* Bottom OTT Navigation Bar */}
             <BottomNavBar
               activeTab={activeTab}
-              onTabChange={setActiveTab}
+              onTabChange={handleTabChange}
               favoritesCount={favorites.length}
               activeTheme={activeTheme}
             />
@@ -302,7 +348,8 @@ const getStyles = (theme: ThemePalette) =>
   StyleSheet.create({
     safeArea: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.cardBg,
+      paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0,
     },
     mainContainer: {
       flex: 1,
@@ -349,3 +396,4 @@ const getStyles = (theme: ThemePalette) =>
       flex: 1,
     },
   });
+

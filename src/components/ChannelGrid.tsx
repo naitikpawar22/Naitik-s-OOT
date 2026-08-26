@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   FlatList,
   View,
@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Channel } from '../types';
@@ -24,7 +25,7 @@ interface ChannelGridProps {
   activeTheme?: ThemePalette;
 }
 
-export const ChannelGrid: React.FC<ChannelGridProps> = ({
+export const ChannelGridComponent: React.FC<ChannelGridProps> = ({
   channels,
   playingChannelId,
   favorites,
@@ -35,13 +36,33 @@ export const ChannelGrid: React.FC<ChannelGridProps> = ({
   activeTheme = darkTheme,
 }) => {
   const { width } = useWindowDimensions();
-  const styles = getStyles(activeTheme);
+  const styles = useMemo(() => getStyles(activeTheme), [activeTheme]);
 
   const numColumns =
     width >= 1280 ? 6 :
     width >= 1024 ? 5 :
     width >= 768 ? 4 :
     width >= 520 ? 3 : 2;
+
+  const keyExtractor = useCallback((item: Channel) => item.id, []);
+
+  const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: Channel }) => (
+      <View style={numColumns > 1 ? { flex: 1, marginHorizontal: 4 } : undefined}>
+        <ChannelCard
+          channel={item}
+          isPlaying={playingChannelId === item.id}
+          isFavorite={favoriteSet.has(item.id)}
+          onSelect={onSelectChannel}
+          onToggleFavorite={onToggleFavorite}
+          activeTheme={activeTheme}
+        />
+      </View>
+    ),
+    [numColumns, playingChannelId, favoriteSet, onSelectChannel, onToggleFavorite, activeTheme]
+  );
 
   if (isLoading && channels.length === 0) {
     return (
@@ -66,11 +87,16 @@ export const ChannelGrid: React.FC<ChannelGridProps> = ({
     <FlatList
       key={`grid-${numColumns}`}
       data={channels}
-      keyExtractor={(item) => item.id}
+      keyExtractor={keyExtractor}
       numColumns={numColumns}
       contentContainerStyle={styles.listPadding}
       columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
       showsVerticalScrollIndicator={false}
+      initialNumToRender={10}
+      maxToRenderPerBatch={8}
+      windowSize={5}
+      removeClippedSubviews={Platform.OS === 'android'}
+      updateCellsBatchingPeriod={50}
       refreshControl={
         onRefresh ? (
           <RefreshControl
@@ -81,21 +107,12 @@ export const ChannelGrid: React.FC<ChannelGridProps> = ({
           />
         ) : undefined
       }
-      renderItem={({ item }) => (
-        <View style={numColumns > 1 ? { flex: 1, marginHorizontal: 4 } : undefined}>
-          <ChannelCard
-            channel={item}
-            isPlaying={playingChannelId === item.id}
-            isFavorite={favorites.includes(item.id)}
-            onSelect={onSelectChannel}
-            onToggleFavorite={onToggleFavorite}
-            activeTheme={activeTheme}
-          />
-        </View>
-      )}
+      renderItem={renderItem}
     />
   );
 };
+
+export const ChannelGrid = React.memo(ChannelGridComponent);
 
 const getStyles = (theme: ThemePalette) =>
   StyleSheet.create({
@@ -133,3 +150,4 @@ const getStyles = (theme: ThemePalette) =>
       maxWidth: 280,
     },
   });
+
